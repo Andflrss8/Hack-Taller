@@ -5,11 +5,15 @@
 
 ## 1. ¿Qué es este proyecto?
 
-Proyecto de **hackathon** desarrollado en equipo. Somos una "startup" que ofrece a locales de comida y mercados pequeños (misceláneas, fruterías, cafeterías, etc.) una o varias **básculas conectadas a una aplicación**.
+Proyecto de **hackathon** desarrollado en equipo. Somos una "startup" que ofrece a locales de comida y mercados pequeños (misceláneas, fruterías, cafeterías, etc.) una o varias **básculas conectadas a una aplicación móvil**.
 
 Con las básculas se pesan los alimentos; con esas lecturas se genera una **predicción (apoyada con IA) de cuánto alimento se va a desperdiciar**. A partir de la predicción, el vendedor crea **ofertas** de ese excedente para que otras personas u organizaciones puedan **reservarlo**, de modo que el alimento se aproveche en lugar de tirarse.
 
 **Propósito social:** combatir la pobreza alimentaria y el desperdicio de alimentos, sobre todo en México.
+
+### Plataforma objetivo
+
+La interfaz de usuario es una **aplicación móvil**. La tecnología específica (React Native, Flutter, nativo iOS/Android, etc.) aún no está definida por el equipo. El backend expone una **API REST** (Node.js + Prisma) que la app móvil consume.
 
 ## 2. Flujo principal del negocio
 
@@ -31,15 +35,15 @@ Más adelante, `PREDICCIONES.kg_reales` permitirá comparar lo estimado contra l
 | Runtime | Node.js 22 (`node:22-slim` en Docker) |
 | Contenedores | Docker + Docker Compose (servicios `db` y `app`) |
 | App | Puerto 3000, arranca con `npm run dev` |
+| Frontend | App móvil — tecnología por definir (React Native, Flutter, etc.) |
 
-### Docker (estado actual y pendiente)
+### Docker (estado actual)
 
-- `docker-compose.yml`, `Dockerfile` y `README.md` están en la raíz del repo.
+- `docker-compose.yml`, `Dockerfile`, `.gitignore`, `.dockerignore` y `.env.example` están en la raíz del repo.
 - El `Dockerfile` instala `openssl` (necesario para Prisma en `slim`), copia `package*.json` y `prisma/` antes del resto para aprovechar caché, corre `npx prisma generate` y expone el 3000.
-- ⚠️ **El `docker-compose.yml` actual levanta PostgreSQL (`postgres:16-alpine`)**, pero el proyecto está definido en **MySQL**. Hay que alinearlo: imagen `mysql:8.4`, puerto 3306, `DATABASE_URL="mysql://root:<pass>@db:3306/<db>"` y `provider = "mysql"` en `schema.prisma`.
+- El compose usa MySQL 8.4, `DATABASE_URL` apunta al servicio `db` con el provider `mysql`.
+- Las credenciales se leen del archivo `.env` (no versionado). Usar `.env.example` como plantilla.
 - En desarrollo conviene usar `root` en MySQL porque `prisma migrate dev` necesita crear una base de datos sombra.
-- Las credenciales no deben quedar fijas en el compose si el repo es público: usar `.env` y `${VARIABLE}`.
-- Falta un `.dockerignore` (`node_modules`, `.git`, `.env`).
 - Si se agregan dependencias: `docker compose up --build -V` (por el volumen anónimo de `node_modules`).
 
 ## 4. Modelo de datos (versión vigente)
@@ -118,7 +122,7 @@ Reportes de **falla de báscula** (no son reclamos sobre ofertas).
 - Si `OFERTAS.categoria_id` se mantiene o se deduce de la predicción.
 - Cómo se valida que la suma de `RESERVAS.kg_reservados` no exceda `OFERTAS.kg_disponibles` (lógica de aplicación o transacción).
 - Permisos por `rol` (qué puede hacer cada tipo de usuario).
-- Alinear Docker Compose con MySQL (ver sección 3).
+- Tecnología del frontend móvil (React Native, Flutter, nativo, etc.).
 
 ## 8. Cómo debe trabajar Claude en este repo
 
@@ -128,3 +132,4 @@ Reportes de **falla de báscula** (no son reclamos sobre ofertas).
 - No inventar valores de enums ya definidos: usar los de este archivo y marcar como "propuesta" los nuevos.
 - Es un hackathon: priorizar soluciones simples y funcionales sobre sobreingeniería, sin sacrificar la integridad de datos.
 - Mantener este archivo actualizado cuando cambie el esquema.
+- Tener en cuenta que el consumidor final de la API es una **app móvil**: diseñar respuestas JSON limpias, paginadas donde aplique y sin campos sensibles.
