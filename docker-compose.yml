@@ -1,0 +1,54 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: desperdicio
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-slim
+
+        RUN apt-get update -y && apt-get install -y openssl
+
+        WORKDIR /app
+
+        COPY package*.json ./
+        RUN npm install
+
+        COPY prisma ./prisma/
+        RUN npx prisma generate
+
+        COPY . .
+
+        EXPOSE 3000
+
+        CMD ["npm", "run", "dev"]
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "mysql://root:rootpass123@db:3306/desperdicio"
+    volumes:
+      # Sincroniza tu código local con el contenedor
+      - .:/app
+      # Evita que node_modules local vacío sobrescriba el del contenedor
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
