@@ -6,7 +6,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
     ports:
-      - "3306:3306"
+      - "3307:3307"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -21,15 +21,12 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-8000}:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      NODE_ENV: ${NODE_ENV:-development}
     volumes:
-      # Sincroniza tu código local con el contenedor
+      # Sincroniza tu código local con el contenedor (hot-reload con --reload)
       - .:/app
-      # Evita que node_modules local vacío sobrescriba el del contenedor
-      - /app/node_modules
     depends_on:
       db:
         condition: service_healthy

@@ -1,21 +1,14 @@
-FROM node:22-slim
-
-# openssl es requerido por Prisma en imágenes slim
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copiar manifiestos primero para aprovechar la caché de capas
-COPY package*.json ./
-RUN npm install
-
-# Generar el cliente de Prisma
-COPY prisma ./prisma/
-RUN npx prisma generate
+# Copiar e instalar dependencias primero para aprovechar caché de capas
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el resto del código fuente
 COPY . .
 
-EXPOSE 3000
+EXPOSE 8000
 
-CMD ["npm", "run", "dev"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
