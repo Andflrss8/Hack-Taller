@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merma Cero | Monitor de desperdicio</title>
+<style>
+:root{
+  --forest:#123d32;--forest2:#1d5947;--lime:#c8ef78;--mint:#eaf4ed;
+  --paper:#f6f7f2;--white:#fff;--ink:#18251f;--muted:#718078;
+  --line:#e3e9e3;--orange:#e99a55;--shadow:0 18px 50px #173b2a12;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select{font:inherit}
+.shell{max-width:1180px;margin:auto;padding:24px 28px 48px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:5px 0 26px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:850;letter-spacing:-.04em;font-size:20px}
+.logo{width:38px;height:38px;border-radius:13px;background:var(--forest);color:var(--lime);display:grid;place-items:center;font-size:21px}
+.navright{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}
+.live{display:inline-flex;align-items:center;gap:7px;background:#e7f3e9;color:#276243;padding:7px 11px;border-radius:99px;font-weight:750}
+.dot{width:7px;height:7px;background:#36a269;border-radius:50%;box-shadow:0 0 0 4px #36a26920}
+.hero{background:var(--forest);border-radius:25px;padding:32px 36px;color:white;position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;gap:24px;box-shadow:var(--shadow)}
+.hero:after{content:"";position:absolute;width:360px;height:360px;border:1px solid #ffffff18;border-radius:50%;right:8%;top:-210px;box-shadow:0 0 0 42px #ffffff08,0 0 0 84px #ffffff06}
+.eyebrow{color:var(--lime);font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:850}
+h1{font-size:clamp(29px,4vw,43px);line-height:1.08;letter-spacing:-.055em;margin:10px 0 12px;max-width:600px}
+.hero p{color:#c7d9d0;margin:0;max-width:580px}
+.hero-tag{position:relative;z-index:1;min-width:170px;text-align:center}
+.hero-icon{width:112px;height:112px;border:1px solid #ffffff35;background:#ffffff0c;border-radius:32px;margin:auto;display:grid;place-items:center;font-size:53px}
+.hero-tag small{display:block;color:#c7d9d0;margin-top:10px}
+.sectionhead{display:flex;justify-content:space-between;align-items:end;margin:27px 0 13px}
+.sectionhead h2{font-size:18px;letter-spacing:-.03em;margin:0}
+.sectionhead span{font-size:12px;color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.metric{background:white;border:1px solid var(--line);border-radius:17px;padding:18px 19px;box-shadow:0 4px 18px #173b2a06}
+.metric-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px;font-weight:650}
+.metric-icon{width:31px;height:31px;border-radius:10px;background:var(--mint);display:grid;place-items:center;font-size:16px}
+.metric strong{display:block;font-size:29px;letter-spacing:-.055em;margin:10px 0 1px}
+.metric small{color:var(--muted);font-size:11px}
+.content{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;margin-top:16px}
+.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:21px;box-shadow:0 4px 18px #173b2a06}
+.panel h3{margin:0 0 5px;font-size:16px;letter-spacing:-.025em}
+.sub{color:var(--muted);font-size:12px;margin:0 0 17px}
+.weight-display{background:#f3f7f2;border-radius:15px;padding:19px;text-align:center;margin-bottom:16px}
+.weight-display span{font-size:11px;color:var(--muted);font-weight:750;letter-spacing:.12em;text-transform:uppercase}
+.weight{font-size:48px;line-height:1.15;letter-spacing:-.07em;font-weight:850;margin:3px 0}
+.weight em{font-size:17px;font-style:normal;color:var(--muted);letter-spacing:0;font-weight:600}
+.reading-meta{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
+.pill{font-size:10px;font-weight:750;padding:5px 9px;border-radius:99px;background:#e8f2e9;color:#276243}
+.pill.sim{background:#fff2df;color:#94601f}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:11px;color:#526158;font-weight:750;margin-bottom:5px}
+input,select{width:100%;border:1px solid #dce5dc;border-radius:10px;padding:10px 11px;background:white;color:var(--ink);outline:none}
+input:focus,select:focus{border-color:#4c9870;box-shadow:0 0 0 3px #4c987018}
+.full{grid-column:1/-1}
+.toggleline{display:flex;align-items:center;justify-content:space-between;margin:14px 0 2px;padding:11px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12px;font-weight:700}
+.toggleline input{width:17px;height:17px;accent-color:var(--forest)}
+.actions{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+button{border:0;border-radius:10px;padding:11px 15px;font-size:12px;font-weight:800;cursor:pointer;transition:.15s}
+button:disabled{opacity:.6;cursor:wait}
+.primary{background:var(--forest);color:white}.primary:hover{background:var(--forest2);transform:translateY(-1px)}
+.secondary{background:#edf2ed;color:#294338}.secondary:hover{background:#e2ebe3}
+.endpoint{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.endpoint label{font-size:11px}
+.status{margin-top:12px;border-radius:10px;padding:10px 12px;background:#f2f5f2;color:var(--muted);font-size:11px}
+.status.ok{background:#eaf5ec;color:#23633d}.status.err{background:#fff0ed;color:#a23c2b}.status.wait{background:#fff5e5;color:#8a5b1c}
+.json{background:#14231d;color:#d8efdf;border-radius:12px;padding:15px;overflow:auto;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;min-height:205px;white-space:pre}
+.jsonhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.jsonhead span{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.12em}
+.jsonhead b{font-size:10px;color:#3d8059;background:#eaf4ed;padding:4px 7px;border-radius:6px}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.flowstep{background:#f5f8f4;border:1px solid var(--line);border-radius:11px;padding:11px 8px;text-align:center}
+.flowstep i{font-style:normal;font-size:19px;display:block;margin-bottom:5px}
+.flowstep b{font-size:10px;display:block}
+.flowstep small{font-size:9px;color:var(--muted)}
+.footer{display:flex;justify-content:space-between;gap:12px;margin-top:25px;color:var(--muted);font-size:11px}
+@media(max-width:800px){.content{grid-template-columns:1fr}.hero{padding:27px}.hero-tag{min-width:115px}.hero-icon{width:84px;height:84px;font-size:40px}}
+@media(max-width:560px){.shell{padding:15px}.navright .hide{display:none}.hero{padding:23px}.hero-tag{display:none}.metrics{grid-template-columns:1fr}.metric{padding:15px}.formgrid{grid-template-columns:1fr}.full{grid-column:auto}.flow{grid-template-columns:repeat(2,1fr)}.footer{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav>
+    <div class="brand"><div class="logo">✳</div> merma<span style="color:#6b9b76">cero</span></div>
+    <div class="navright"><span class="hide">Panel de demostración</span><span class="live"><i class="dot"></i> Sistema de prueba</span></div>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Tecnología para aprovechar mejor los alimentos</div>
+      <h1>Menos desperdicio.<br>Más alimento aprovechado.</h1>
+      <p>Monitorea los residuos de tu cafetería, convierte cada medición en información útil y ayuda a anticipar los excedentes de alimentos.</p>
+    </div>
+    <div class="hero-tag"><div class="hero-icon">⚖️</div><small>Monitoreo inteligente de mermas</small></div>
+  </section>
+
+  <div class="sectionhead"><h2>Resumen de la báscula</h2><span>Datos ilustrativos · no representan mediciones reales</span></div>
+  <section class="metrics">
+    <article class="metric"><div class="metric-top">Última lectura <span class="metric-icon">⚖</span></div><strong id="metricWeight">450.0 g</strong><small>Peso registrado en esta prueba</small></article>
+    <article class="metric"><div class="metric-top">Dispositivo <span class="metric-icon">⌁</span></div><strong style="font-size:20px;margin-top:16px">ESP32</strong><small id="deviceSummary">ESP32-BASCULA-01</small></article>
+    <article class="metric"><div class="metric-top">Estado de lectura <span class="metric-icon">✓</span></div><strong style="font-size:20px;margin-top:16px" id="readingState">Simulada</strong><small>Lista para enviar al servidor</small></article>
+  </section>
+
+  <section class="content">
+    <article class="panel">
+      <h3>Registrar una medición</h3>
+      <p class="sub">Ajusta los valores para generar una lectura de ejemplo.</p>
+      <div class="weight-display">
+        <span>Peso detectado</span>
+        <div class="weight"><span id="bigWeight">450.0</span> <em>g</em></div>
+        <div class="reading-meta"><span class="pill" id="typePill">LECTURA</span><span class="pill sim" id="simPill">MODO SIMULADO</span></div>
+      </div>
+      <div class="formgrid">
+        <div class="full"><label for="device">IDENTIFICADOR DEL DISPOSITIVO</label><input id="device" value="ESP32-BASCULA-01"></div>
+        <div><label for="weight">PESO (GRAMOS)</label><input id="weight" type="number" min="0" step="0.1" value="450.0"></div>
+        <div><label for="category">CATEGORÍA ID</label><input id="category" type="number" min="1" step="1" value="1"></div>
+        <div class="full"><label for="type">TIPO DE EVENTO</label><select id="type"><option value="lectura">Lectura de peso</option><option value="calibracion">Calibración</option><option value="prueba">Prueba de dispositivo</option></select></div>
+      </div>
+      <div class="toggleline"><label for="simulated" style="margin:0">Marcar como dato simulado</label><input id="simulated" type="checkbox" checked></div>
+      <div class="endpoint">
+        <label for="url">ENDPOINT DE RECEPCIÓN (API)</label>
+        <input id="url" type="url" value="/basculas/lectura-esp32">
+      </div>
+      <div class="actions">
+        <button class="primary" id="send">Enviar medición ↗</button>
+        <button class="secondary" id="copy">Copiar JSON</button>
+      </div>
+      <div id="status" class="status">Preparado para generar una lectura de prueba.</div>
+    </article>
+
+    <article class="panel">
+      <div class="jsonhead"><span>VISTA PREVIA · JSON</span><b>application/json</b></div>
+      <pre class="json" id="preview"></pre>
+      <h3 style="margin-top:20px">Del residuo a una decisión</h3>
+      <p class="sub">La lectura del dispositivo alimenta el sistema que organiza y analiza la información.</p>
+      <div class="flow">
+        <div class="flowstep"><i>⚖️</i><b>Báscula</b><small>Celda + HX711</small></div>
+        <div class="flowstep"><i>⌁</i><b>ESP32</b><small>Envía la lectura</small></div>
+        <div class="flowstep"><i>▤</i><b>Plataforma</b><small>Guarda el historial</small></div>
+        <div class="flowstep"><i>↗</i><b>Predicción</b><small>Estima excedentes</small></div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin:16px 0 0">Objetivo: anticipar qué alimentos podrían sobrar para facilitar su aprovechamiento por estudiantes o bancos de alimentos.</p>
+    </article>
+  </section>
+  <footer class="footer"><span>MERMA CERO · Prototipo de monitoreo de desperdicio alimentario</span><span>Interfaz de demostración · Datos simulados</span></footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function data(){return{
+  codigo_dispositivo:$('device').value.trim(),
+  peso_g:Number($('weight').value),
+  categoria_id:Number($('category').value),
+  tipo:$('type').value,
+  es_simulada:$('simulated').checked
+}}
+function validate(d){
+  if(!d.codigo_dispositivo)return'El identificador del dispositivo es obligatorio.';
+  if(!Number.isFinite(d.peso_g)||d.peso_g<0)return'El peso debe ser un número válido mayor o igual a cero.';
+  if(!Number.isInteger(d.categoria_id)||d.categoria_id<1)return'La categoría debe ser un entero positivo.';
+  return'';
+}
+function render(){
+  const d=data();
+  $('preview').textContent=JSON.stringify(d,null,2);
+  $('bigWeight').textContent=Number.isFinite(d.peso_g)?d.peso_g.toFixed(1):'—';
+  $('metricWeight').textContent=Number.isFinite(d.peso_g)?d.peso_g.toFixed(1)+' g':'—';
+  $('deviceSummary').textContent=d.codigo_dispositivo||'Sin identificar';
+  $('readingState').textContent=d.es_simulada?'Simulada':'Real';
+  $('simPill').textContent=d.es_simulada?'MODO SIMULADO':'MODO REAL';
+  $('simPill').style.background=d.es_simulada?'#fff2df':'#e7f3e9';
+  $('simPill').style.color=d.es_simulada?'#94601f':'#276243';
+  $('typePill').textContent=d.tipo.toUpperCase();
+}
+['device','weight','category','type','simulated'].forEach(id=>$(id).addEventListener('input',render));
+function status(message,kind=''){ $('status').className='status '+kind; $('status').textContent=message; }
+$('copy').addEventListener('click',async()=>{
+ const d=data(),err=validate(d);if(err)return status(err,'err');
+ try{await navigator.clipboard.writeText(JSON.stringify(d,null,2));status('JSON copiado. Ya puedes pegarlo en Postman o en tu documentación.','ok')}
+ catch(e){status('No se pudo copiar automáticamente; selecciona el JSON y cópialo manualmente.','err')}
+});
+$('send').addEventListener('click',async()=>{
+ const d=data(),err=validate(d);if(err)return status(err,'err');
+ const url=$('url').value.trim();if(!url)return status('Agrega la URL del endpoint para enviar la medición.','wait');
+ try{new URL(url, location.href)}catch(e){return status('La URL ingresada no es válida.','err')}
+ $('send').disabled=true;$('send').textContent='Enviando…';status('Enviando medición al servidor…','wait');
+ try{
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  const t=await r.text();
+  if(!r.ok)status(`El servidor respondió HTTP ${r.status}: ${t||r.statusText}`,'err');
+  else status(`Medición enviada correctamente · HTTP ${r.status}${t?' · '+t:''}`,'ok');
+ }catch(e){status('No se pudo conectar. Verifica que la API esté activa, la URL sea correcta y el servidor permita CORS.','err')}
+ finally{$('send').disabled=false;$('send').textContent='Enviar medición ↗'}
+});
+render();
+</script>
+</body>
+</html>
