@@ -1,0 +1,59 @@
+"""
+routers/reclamos.py
+
+Gestión de reclamos por fallas de báscula.
+Un VENDEDOR reporta que su báscula no conecta, da peso incorrecto, etc.
+"""
+
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+
+from app.database import get_session
+from app.models import Reclamo, EstadoReclamo
+from app.schemas import ReclamoCreate, ReclamoPublic
+
+router = APIRouter(prefix="/reclamos", tags=["Reclamos"])
+
+
+@router.get("/", response_model=list[ReclamoPublic], summary="Listar reclamos")
+def listar_reclamos(
+    usuario_id: int | None = None,
+    session: Session = Depends(get_session),
+):
+    query = select(Reclamo)
+    if usuario_id:
+        query = query.where(Reclamo.usuario_id == usuario_id)
+    return session.exec(query).all()
+
+
+@router.get("/{reclamo_id}", response_model=ReclamoPublic, summary="Obtener un reclamo")
+def obtener_reclamo(reclamo_id: int, session: Session = Depends(get_session)):
+    reclamo = session.get(Reclamo, reclamo_id)
+    if not reclamo:
+        raise HTTPException(status_code=404, detail="Reclamo no encontrado")
+    return reclamo
+
+
+@router.post("/", response_model=ReclamoPublic, summary="Crear un reclamo de falla")
+def crear_reclamo(data: ReclamoCreate, session: Session = Depends(get_session)):
+    nuevo = Reclamo(**data.model_dump())
+    session.add(nuevo)
+    session.commit()
+    session.refresh(nuevo)
+    return nuevo
+
+
+@router.patch("/{reclamo_id}/resolver", response_model=ReclamoPublic, summary="Marcar reclamo como resuelto")
+def resolver_reclamo(reclamo_id: int, session: Session = Depends(get_session)):
+    """Marca el reclamo como RESUELTO y registra la fecha/hora de resolución."""
+    reclamo = session.get(Reclamo, reclamo_id)
+    if not reclamo:
+        raise HTTPException(status_code=404, detail="Reclamo no encontrado")
+    reclamo.estado = EstadoReclamo.RESUELTO
+    reclamo.resuelto_en = datetime.utcnow()
+    session.add(reclamo)
+    session.commit()
+    session.refresh(reclamo)
+    return reclamo

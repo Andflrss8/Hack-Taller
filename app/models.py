@@ -3,66 +3,85 @@ from decimal import Decimal
 from enum import Enum
 from typing import Optional, List
 
-from sqlalchemy import Column, Text, DECIMAL
+from sqlalchemy import BigInteger, Column, ForeignKey, Text, DECIMAL
 from sqlmodel import SQLModel, Field, Relationship
 
 
-# ─── Enums ────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  ENUMS
+#  Se usan como tipos en los modelos; SQLModel los mapea a VARCHAR en MySQL.
+# ══════════════════════════════════════════════════════════════════════════════
 
 class RolUsuario(str, Enum):
-    VENDEDOR = "VENDEDOR"
-    RECEPTOR = "RECEPTOR"
+    VENDEDOR = "VENDEDOR"   # Dueño del negocio que publica ofertas
+    RECEPTOR = "RECEPTOR"   # Organización/persona que hace reservas
 
 
 class TipoNegocio(str, Enum):
     MISCELANEA = "MISCELANEA"
-    FRUTERIA = "FRUTERIA"
-    CAFETERIA = "CAFETERIA"
-    OTRO = "OTRO"
+    FRUTERIA   = "FRUTERIA"
+    CAFETERIA  = "CAFETERIA"
+    OTRO       = "OTRO"
 
 
 class TipoLectura(str, Enum):
-    INVENTARIO = "INVENTARIO"
-    SOBRANTE = "SOBRANTE"
+    INVENTARIO = "INVENTARIO"  # Lectura de control de inventario
+    SOBRANTE   = "SOBRANTE"    # Lectura de excedente/desperdicio
 
 
 class EstadoOferta(str, Enum):
-    ACTIVA = "ACTIVA"
-    AGOTADA = "AGOTADA"
-    EXPIRADA = "EXPIRADA"
+    ACTIVA    = "ACTIVA"
+    AGOTADA   = "AGOTADA"
+    EXPIRADA  = "EXPIRADA"
     CANCELADA = "CANCELADA"
 
 
 class EstadoReserva(str, Enum):
-    PENDIENTE = "PENDIENTE"
+    PENDIENTE  = "PENDIENTE"
     CONFIRMADA = "CONFIRMADA"
-    RECOGIDA = "RECOGIDA"
-    CANCELADA = "CANCELADA"
+    RECOGIDA   = "RECOGIDA"
+    CANCELADA  = "CANCELADA"
 
 
 class TipoReclamo(str, Enum):
-    NO_CONECTA = "NO_CONECTA"
+    NO_CONECTA      = "NO_CONECTA"
     PESO_INCORRECTO = "PESO_INCORRECTO"
-    OTRO = "OTRO"
+    OTRO            = "OTRO"
 
 
 class EstadoReclamo(str, Enum):
-    ABIERTO = "ABIERTO"
+    ABIERTO    = "ABIERTO"
     EN_PROCESO = "EN_PROCESO"
-    RESUELTO = "RESUELTO"
-    CERRADO = "CERRADO"
+    RESUELTO   = "RESUELTO"
+    CERRADO    = "CERRADO"
 
 
-# ─── Tabla intermedia N:M ─────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  TABLA INTERMEDIA — PREDICCION_LECTURAS (N:M)
+#  Se define primero para evitar problemas de forward-reference.
+# ══════════════════════════════════════════════════════════════════════════════
 
 class PrediccionLectura(SQLModel, table=True):
     __tablename__ = "PREDICCION_LECTURAS"
 
-    prediccion_id: int = Field(foreign_key="PREDICCIONES.id", primary_key=True)
-    lectura_id: int = Field(foreign_key="LECTURAS_PESO.id", primary_key=True)
+    prediccion_id: int = Field(
+        foreign_key="PREDICCIONES.id",
+        primary_key=True
+    )
+    # lectura_id es BigInt para coincidir con LECTURAS_PESO.id
+    lectura_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("LECTURAS_PESO.id"),
+            primary_key=True,
+            nullable=False
+        )
+    )
 
 
-# ─── Modelos principales ──────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  MODELOS PRINCIPALES
+# ══════════════════════════════════════════════════════════════════════════════
 
 class Usuario(SQLModel, table=True):
     __tablename__ = "USUARIOS"
@@ -70,7 +89,8 @@ class Usuario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str
     email: str = Field(unique=True, index=True)
-    password_hash: str  # nunca devolver en respuestas de la API
+    # IMPORTANTE: nunca devolver password_hash en las respuestas de la API
+    password_hash: str
     telefono: Optional[str] = None
     rol: RolUsuario
     nombre_negocio: Optional[str] = None
@@ -79,10 +99,12 @@ class Usuario(SQLModel, table=True):
     ciudad_region: Optional[str] = None
     estado: Optional[str] = None
     pais: Optional[str] = None
+    # Decimal(10,7) para precisión geográfica suficiente (~1 cm)
     latitud: Optional[Decimal] = Field(default=None, sa_column=Column(DECIMAL(10, 7)))
     longitud: Optional[Decimal] = Field(default=None, sa_column=Column(DECIMAL(10, 7)))
     creado_en: datetime = Field(default_factory=datetime.utcnow)
 
+    # Relaciones (lazy por defecto en SQLModel)
     basculas: List["Bascula"] = Relationship(back_populates="usuario")
     predicciones: List["Prediccion"] = Relationship(back_populates="usuario")
     ofertas: List["Oferta"] = Relationship(back_populates="usuario")
@@ -95,8 +117,10 @@ class Bascula(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     usuario_id: int = Field(foreign_key="USUARIOS.id", index=True)
+    # El ESP32 se identifica con este código al enviar lecturas
     codigo_dispositivo: str = Field(unique=True)
-    api_key_hash: str  # nunca devolver en respuestas de la API
+    # IMPORTANTE: nunca devolver api_key_hash en las respuestas de la API
+    api_key_hash: str
     alias: Optional[str] = None
     activa: bool = True
     ultima_conexion: Optional[datetime] = None
@@ -122,11 +146,16 @@ class CategoriaAlimento(SQLModel, table=True):
 class LecturaPeso(SQLModel, table=True):
     __tablename__ = "LECTURAS_PESO"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    # BigInt porque esta tabla crece rápido (una lectura por pesaje)
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
+    )
     bascula_id: int = Field(foreign_key="BASCULAS.id", index=True)
     categoria_id: Optional[int] = Field(default=None, foreign_key="CATEGORIAS_ALIMENTO.id")
     peso_g: Decimal = Field(sa_column=Column(DECIMAL(10, 2)))
-    descripcion: Optional[str] = Field(default=None, max_length=255)  # equivalente a tinytext
+    # Equivalente a TINYTEXT: descripción corta opcional del operador
+    descripcion: Optional[str] = Field(default=None, max_length=255)
     tipo: TipoLectura
     fecha_hora: datetime = Field(default_factory=datetime.utcnow, index=True)
     es_simulada: bool = False
@@ -143,7 +172,9 @@ class Prediccion(SQLModel, table=True):
     categoria_id: int = Field(foreign_key="CATEGORIAS_ALIMENTO.id")
     fecha_objetivo: date
     kg_estimados: Decimal = Field(sa_column=Column(DECIMAL(10, 2)))
+    # kg_reales se llena después para evaluar la precisión del modelo de IA
     kg_reales: Optional[Decimal] = Field(default=None, sa_column=Column(DECIMAL(10, 2)))
+    # confianza entre 0.0000 y 1.0000
     confianza: Optional[Decimal] = Field(default=None, sa_column=Column(DECIMAL(5, 4)))
     modelo: Optional[str] = None
     creada_en: datetime = Field(default_factory=datetime.utcnow)
@@ -194,6 +225,7 @@ class Reclamo(SQLModel, table=True):
     usuario_id: int = Field(foreign_key="USUARIOS.id", index=True)
     bascula_id: Optional[int] = Field(default=None, foreign_key="BASCULAS.id")
     tipo: TipoReclamo
+    # Text (no TinyText) para permitir descripciones largas del problema
     descripcion: str = Field(sa_column=Column(Text))
     estado: EstadoReclamo = EstadoReclamo.ABIERTO
     creado_en: datetime = Field(default_factory=datetime.utcnow)
