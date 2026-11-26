@@ -8,7 +8,7 @@ estos schemas son lo que ve el cliente de escritorio.
 
 from datetime import datetime, date
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, field_validator
 
@@ -258,3 +258,60 @@ class ReclamoPublic(BaseModel):
     resuelto_en: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  INTELIGENCIA ARTIFICIAL (GEMINI) Y CENTROS DE DONACIÓN CERCANOS
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ReceptorCercano(BaseModel):
+    """Organización o usuario con rol RECEPTOR registrado en nuestra BD."""
+    id: int
+    nombre: str
+    nombre_negocio: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    ciudad_region: Optional[str] = None
+    distancia_km: Optional[float] = None
+
+
+class CentroDonacionPublic(BaseModel):
+    """Centro de donación externo sugerido por Gemini (DIF, Cáritas, etc.)."""
+    nombre: str
+    tipo_institucion: str
+    ubicacion_referencia: str
+    motivo_cercania: str
+    requiere_verificacion: bool
+
+
+class CentrosCercanosResponse(BaseModel):
+    """Respuesta combinada: receptores de la BD + centros sugeridos por IA."""
+    oferta_id: int
+    ubicacion_local: Optional[str] = None
+    receptores_registrados: List[ReceptorCercano] = []
+    centros_donacion_sugeridos: List[CentroDonacionPublic] = []
+
+
+class GenerarPrediccionIARequest(BaseModel):
+    """Petición para generar una predicción con Gemini a partir de lecturas reales."""
+    usuario_id: int
+    categoria_id: int
+    # Si no se envían IDs, el endpoint toma las últimas 5 lecturas de esa báscula/categoría
+    lectura_ids: Optional[List[int]] = None
+    fecha_objetivo: Optional[date] = None
+
+
+class GenerarOfertaIARequest(BaseModel):
+    """Petición para generar una oferta y buscar centros de donación cercanos."""
+    prediccion_id: Optional[int] = None
+    lectura_id: Optional[int] = None
+
+
+class AnalisisCompletoIAResponse(BaseModel):
+    """Respuesta completa del flujo ESP32 -> Predicción IA -> Oferta + Centros cercanos."""
+    lectura: Optional[LecturaPublic] = None
+    prediccion: PrediccionPublic
+    oferta: Optional[OfertaPublic] = None
+    justificacion_ia: str
+    receptores_registrados: List[ReceptorCercano] = []
+    centros_donacion_sugeridos: List[CentroDonacionPublic] = []

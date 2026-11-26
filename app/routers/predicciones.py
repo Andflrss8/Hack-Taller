@@ -10,13 +10,27 @@ Flujo:
 4. Después, se puede registrar kg_reales para evaluar el modelo (PATCH /predicciones/{id}/kg-reales)
 """
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import Prediccion, PrediccionLectura
-from app.schemas import PrediccionCreate, PrediccionPublic
-from decimal import Decimal
+from app.models import (
+    Bascula,
+    CategoriaAlimento,
+    LecturaPeso,
+    Prediccion,
+    PrediccionLectura,
+    Usuario,
+)
+from app.schemas import (
+    AnalisisCompletoIAResponse,
+    GenerarPrediccionIARequest,
+    PrediccionCreate,
+    PrediccionPublic,
+)
+from app.services.flujo_ia import ejecutar_analisis_y_guardar
 
 router = APIRouter(prefix="/predicciones", tags=["Predicciones"])
 
@@ -101,3 +115,57 @@ def registrar_kg_reales(
     session.commit()
     session.refresh(pred)
     return pred
+
+
+@router.post(
+    "/generar-ia",
+    response_model=AnalisisCompletoIAResponse,
+    summary="Generar predicción con Gemini a partir de lecturas de báscula",
+)
+def generar_prediccion_ia(
+    data: GenerarPrediccionIARequest,
+    session: Session = Depends(get_session),
+):
+    """
+    Usa Gemini (con validación de seguridad y reglas anti-alucinación) para
+    estimar el desperdicio a partir de lecturas reales de la báscula ESP32.
+    Si no se envían `lectura_ids`, toma las últimas 5 lecturas del usuario/categoría.
+    """
+    vendedor = session.get(Usuario, data.usuario_id)
+    if not vendedor:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    categoria = session.get(CategoriaAlimento, data.categoria_id)
+    if not categoria:
+        raise HTTPException(status_code=404, detail="Categoría de alimento no encontrada")
+
+    if data.lectura_ids:
+        lecturas = session.exec(
+            select(LecturaPeso).where(LecturaPeso.id.in_(data.lectura_ids))
+        ).all()
+    else:
+        # Buscar las últimas 5 lecturas de las básculas del vendedor para esa categoría
+        basculas_ids = session.exec(
+            select(Bascula.id).where(Bascula.usuario_id == data.usuario_id)
+        ).all()
+        if not basculas_ids:
+            raise HTTPException(status_code=404, detail="El usuario no tiene básculas registradas")
+
+        lecturas = session.exec(
+            select(LecturaPeso)
+            .where(
+                LecturaPeso.bascula_id.in_(basculas_ids),
+                LecturaPeso.categoria_id == data.categoria_id,
+            )
+            .order_by(LecturaPeso.fecha_hora.desc())
+            .limit(5)
+        ).all()
+
+    return ejecutar_analisis_y_guardar(
+        session=session,
+        vendedor=vendedor,
+        categoria=categoria,
+        lecturas=list(lecturas),
+        fecha_objetivo=data.fecha_objetivo,
+        crear_oferta=False,
+    )

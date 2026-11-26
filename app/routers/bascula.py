@@ -14,8 +14,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import Bascula, CategoriaAlimento, LecturaPeso, TipoLectura
-from app.schemas import BasculaCreate, BasculaPublic, LecturaESP32, LecturaPublic
+from app.models import Bascula, CategoriaAlimento, LecturaPeso, TipoLectura, Usuario
+from app.schemas import (
+    AnalisisCompletoIAResponse,
+    BasculaCreate,
+    BasculaPublic,
+    LecturaESP32,
+    LecturaPublic,
+)
+from app.services.flujo_ia import ejecutar_analisis_y_guardar
 
 router = APIRouter(prefix="/basculas", tags=["Básculas"])
 
@@ -101,6 +108,44 @@ def recibir_lectura_esp32(
     session.refresh(nueva_lectura)
 
     return nueva_lectura
+
+
+@router.post(
+    "/lectura-esp32/procesar-ia",
+    response_model=AnalisisCompletoIAResponse,
+    summary="Recibir lectura ESP32 y generar predicción + oferta con Gemini",
+    description="""
+Recibe el **mismo JSON fijo del ESP32**, guarda la lectura en `LECTURAS_PESO`
+y ejecuta el flujo completo con Gemini:
+1. Valida los datos con el prompt de seguridad.
+2. Genera y guarda la `Prediccion` vinculada a la lectura.
+3. Genera y guarda la `Oferta` sugerida.
+4. Devuelve los centros de donación cercanos (DIF, Cáritas, etc.) y receptores registrados.
+    """,
+)
+def recibir_y_procesar_esp32_ia(
+    payload: LecturaESP32,
+    session: Session = Depends(get_session),
+):
+    # 1. Guardar primero la lectura exactamente igual que en /lectura-esp32
+    nueva_lectura = recibir_lectura_esp32(payload=payload, session=session)
+
+    # 2. Obtener la báscula, su dueño (negocio) y la categoría
+    bascula = session.get(Bascula, nueva_lectura.bascula_id)
+    vendedor = session.get(Usuario, bascula.usuario_id)
+    categoria = session.get(CategoriaAlimento, payload.categoria_id)
+
+    if not vendedor:
+        raise HTTPException(status_code=404, detail="Usuario dueño de la báscula no encontrado.")
+
+    # 3. Ejecutar flujo IA (validación + predicción + oferta + centros cercanos)
+    return ejecutar_analisis_y_guardar(
+        session=session,
+        vendedor=vendedor,
+        categoria=categoria,
+        lecturas=[nueva_lectura],
+        crear_oferta=True,
+    )
 
 
 # ─── CRUD Báscula ─────────────────────────────────────────────────────────────
