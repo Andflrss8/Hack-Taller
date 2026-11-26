@@ -38,7 +38,7 @@ Crea tu archivo local `.env` a partir de la plantilla:
   copy .env.example .env
   ```
 
-> ⚠️ **Nota:** No necesitas cambiar nada en `.env` para desarrollo local a menos que quieras personalizar tus contraseñas. Si las cambias, asegúrate de que la clave en `MYSQL_ROOT_PASSWORD` y en `DATABASE_URL` sean idénticas.
+> ⚠️ **Nota:** Para usar las funciones de IA (predicciones, ofertas y centros de donación cercanos), agrega tu clave real en `GEMINI_API_KEY=` dentro de `.env`. Si cambias las contraseñas de MySQL, asegúrate de que `MYSQL_ROOT_PASSWORD` y la contraseña en `DATABASE_URL` sean idénticas.
 
 ### 3. Levantar los contenedores con Docker
 Ejecuta el siguiente comando en la raíz del proyecto:
@@ -63,12 +63,12 @@ Una vez que los contenedores estén corriendo, puedes acceder a:
 
 ---
 
-## 📡 Endpoint clave para el ESP32
+## 📡 Endpoints clave para ESP32, IA y Frontend
 
-El hardware de la báscula enviará automáticamente los pesajes al endpoint:
-- **Método:** `POST`
-- **URL:** `http://localhost:8000/basculas/lectura-esp32`
-- **Formato del JSON:**
+### 1. Báscula ESP32
+- **Solo guardar lectura:** `POST http://localhost:8000/basculas/lectura-esp32`
+- **Guardar lectura + generar Predicción, Oferta y Centros cercanos con Gemini:** `POST http://localhost:8000/basculas/lectura-esp32/procesar-ia`
+- **Formato del JSON (fijo, no modificar):**
   ```json
   {
     "codigo_dispositivo": "ESP32-BASCULA-01",
@@ -78,3 +78,8 @@ El hardware de la báscula enviará automáticamente los pesajes al endpoint:
     "es_simulada": true
   }
   ```
+
+### 2. Inteligencia Artificial (Gemini) y Centros de Donación
+- `POST /predicciones/generar-ia` — Genera una predicción a partir de lecturas reales de la báscula.
+- `POST /ofertas/generar-ia` — Genera una oferta y sugiere centros cercanos (DIF, Cáritas, Bancos de Alimentos) según la ubicación del local.
+- `GET /ofertas/{oferta_id}/centros-cercanos` — Lista los receptores registrados en BD (ordenados por distancia) y los centros de donación sugeridos por Gemini para esa oferta.

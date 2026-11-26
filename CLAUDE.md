@@ -33,6 +33,7 @@ Más adelante, `PREDICCIONES.kg_reales` permitirá comparar lo estimado contra l
 | Base de datos | **MySQL 8** (`mysql:8.4` en Docker) |
 | ORM | **SQLModel** (sobre SQLAlchemy + Pydantic) |
 | Driver MySQL | **PyMySQL** + `cryptography` (auth MySQL 8) |
+| IA / Predicciones | **Google Gemini API** (`google-genai`, salida JSON estructurada) |
 | Framework API | **FastAPI** |
 | Runtime | **Python 3.12** (`python:3.12-slim` en Docker) |
 | Servidor ASGI | **Uvicorn** (con `--reload` en desarrollo) |
@@ -46,20 +47,25 @@ Más adelante, `PREDICCIONES.kg_reales` permitirá comparar lo estimado contra l
 Hack-Taller/
 ├── app/
 │   ├── __init__.py
+│   ├── app.py               # script de prueba standalone de la API de Gemini
 │   ├── database.py          # engine, create_db_and_tables(), get_session()
 │   ├── models.py            # modelos SQLModel (tablas) + enums
 │   ├── schemas.py           # schemas Pydantic para request/response (sin campos sensibles)
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── gemini_service.py # cliente Gemini + prompt de seguridad + schemas IA
+│   │   └── flujo_ia.py       # orquestación ESP32 -> Predicción -> Oferta + centros
 │   └── routers/
 │       ├── __init__.py
-│       ├── bascula.py       # ESP32 endpoint + CRUD de básculas
+│       ├── bascula.py       # ESP32 endpoints (/lectura-esp32 y /lectura-esp32/procesar-ia) + CRUD
 │       ├── categorias.py    # CRUD de categorías de alimento
 │       ├── usuarios.py      # registro y consulta de usuarios
 │       ├── lecturas.py      # lecturas manuales
-│       ├── ofertas.py       # publicar y gestionar ofertas
+│       ├── ofertas.py       # publicar, generar con IA y buscar centros cercanos
 │       ├── reservas.py      # reservar excedente (con validación de kg)
 │       ├── reclamos.py      # reportar fallas de báscula
-│       └── predicciones.py  # predicciones + vincular lecturas
-├── main.py                  # instancia FastAPI, lifespan, registro de routers
+│       └── predicciones.py  # predicciones (manual y con IA) + vincular lecturas
+├── main.py                  # instancia FastAPI, lifespan, CORS, registro de routers
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
