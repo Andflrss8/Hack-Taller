@@ -13,6 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import create_db_and_tables
 from app.routers import bascula, categorias, usuarios, lecturas, ofertas, reservas, reclamos, predicciones
 
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -64,6 +67,9 @@ app.include_router(predicciones.router)
 app.include_router(ofertas.router)
 app.include_router(reservas.router)
 app.include_router(reclamos.router)
+
+STATIC_DIR = Path(__file__).resolve().parent / "app" / "static"
+app.mount("/panel", StaticFiles(directory=STATIC_DIR, html=True), name="panel")
 
 
 # ─── Rutas base ───────────────────────────────────────────────────────────────

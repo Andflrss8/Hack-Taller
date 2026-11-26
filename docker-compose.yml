@@ -6,14 +6,18 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
     ports:
-      - "3307:3307"
+      - "3307:3306"          # host:contenedor -> MySQL escucha en 3306 dentro del contenedor
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      # 127.0.0.1 (TCP) en vez de localhost (socket): durante la inicialización,
+      # MySQL arranca un servidor temporal sin red; así el healthcheck solo pasa
+      # cuando el servidor definitivo ya acepta conexiones.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 20s
 
   app:
     build:
