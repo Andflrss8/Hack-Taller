@@ -34,9 +34,33 @@ from app.services.flujo_ia import (
     ejecutar_analisis_y_guardar,
     obtener_receptores_cercanos,
 )
-from app.services.gemini_service import buscar_centros_donacion_gemini
+from app.services.gemini_service import (
+    buscar_centros_donacion_gemini,
+    resultado_ia_fallback,
+)
 
 router = APIRouter(prefix="/ofertas", tags=["Ofertas"])
+
+
+def _publicar_oferta(oferta: Oferta, session: Session) -> OfertaPublic:
+    """Completa los alias que el panel lee de /ofertas."""
+    categoria = session.get(CategoriaAlimento, oferta.categoria_id)
+    horario = None
+    ciudad = None
+    for parte in (oferta.descripcion or "").split(" | "):
+        if parte.startswith("Horario: "):
+            horario = parte[len("Horario: "):]
+        elif parte.startswith("Ciudad: "):
+            ciudad = parte[len("Ciudad: "):]
+    return OfertaPublic.model_validate(
+        {
+            **oferta.model_dump(),
+            "categoria": categoria.nombre if categoria else None,
+            "ciudad": ciudad,
+            "horario_recogida": horario,
+            "cantidad_kg": oferta.kg_disponibles,
+        }
+    )
 
 
 @router.get("/", response_model=list[OfertaPublic], summary="Listar ofertas")
@@ -55,7 +79,7 @@ def listar_ofertas(
         query = query.where(Oferta.estado == estado)
     if usuario_id:
         query = query.where(Oferta.usuario_id == usuario_id)
-    return session.exec(query).all()
+    return [_publicar_oferta(o, session) for o in session.exec(query).all()]
 
 
 @router.get("/{oferta_id}", response_model=OfertaPublic, summary="Obtener una oferta")
@@ -63,16 +87,31 @@ def obtener_oferta(oferta_id: int, session: Session = Depends(get_session)):
     oferta = session.get(Oferta, oferta_id)
     if not oferta:
         raise HTTPException(status_code=404, detail="Oferta no encontrada")
-    return oferta
+    return _publicar_oferta(oferta, session)
 
 
 @router.post("/", response_model=OfertaPublic, summary="Crear una oferta")
 def crear_oferta(data: OfertaCreate, session: Session = Depends(get_session)):
-    nueva = Oferta(**data.model_dump())
+    # El panel manda horario_recogida y ciudad como texto: se guardan en descripcion.
+    descripcion = data.descripcion
+    if data.horario_recogida or data.ciudad:
+        partes = [descripcion] if descripcion else []
+        if data.horario_recogida:
+            partes.append(f"Horario: {data.horario_recogida}")
+        if data.ciudad:
+            partes.append(f"Ciudad: {data.ciudad}")
+        descripcion = " | ".join(partes)[:255]
+
+    nueva = Oferta(
+        **data.model_dump(
+            exclude={"horario_recogida", "ciudad", "cantidad_kg"},
+        )
+    )
+    nueva.descripcion = descripcion
     session.add(nueva)
     session.commit()
     session.refresh(nueva)
-    return nueva
+    return _publicar_oferta(nueva, session)
 
 
 @router.patch("/{oferta_id}/estado", response_model=OfertaPublic, summary="Cambiar estado de una oferta")
@@ -92,7 +131,7 @@ def actualizar_estado(
     session.add(oferta)
     session.commit()
     session.refresh(oferta)
-    return oferta
+    return _publicar_oferta(oferta, session)
 
 
 @router.post(
@@ -193,12 +232,13 @@ def obtener_centros_cercanos(oferta_id: int, session: Session = Depends(get_sess
             titulo_oferta=oferta.titulo,
             kg_disponibles=float(oferta.kg_disponibles),
         )
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Error al consultar Gemini: {e}")
+    except Exception:
+        # Sin clave real o fallo de Gemini: se devuelve un centro de ejemplo.
+        sugeridos = resultado_ia_fallback(
+            lecturas_info=[{"peso_g": float(oferta.kg_disponibles) * 1000}],
+            categoria_info={},
+            negocio_info=negocio_info,
+        ).centros_donacion_cercanos
 
     ubicacion_texto = ", ".join(
         p for p in [vendedor.ciudad_region, vendedor.estado, vendedor.pais] if p

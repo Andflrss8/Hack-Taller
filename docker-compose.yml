@@ -30,6 +30,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      BASCULA_API_KEY: ${BASCULA_API_KEY:-clave-de-ejemplo}
     volumes:
       # Sincroniza tu código local con el contenedor (hot-reload con --reload)
       - .:/app

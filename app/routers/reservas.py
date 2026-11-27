@@ -12,10 +12,24 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import Reserva, Oferta, EstadoReserva
-from app.schemas import ReservaCreate, ReservaPublic
+from app.models import Reserva, Oferta, EstadoReserva, Usuario
+from app.schemas import ReservaCreate, ReservaEstadoUpdate, ReservaPublic
 
 router = APIRouter(prefix="/reservas", tags=["Reservas"])
+
+
+def _publicar_reserva(reserva: Reserva, session: Session) -> ReservaPublic:
+    """Completa los alias que el panel lee de /reservas."""
+    oferta = session.get(Oferta, reserva.oferta_id)
+    usuario = session.get(Usuario, reserva.usuario_id)
+    return ReservaPublic.model_validate(
+        {
+            **reserva.model_dump(),
+            "oferta": oferta.titulo if oferta else None,
+            "quien": usuario.nombre if usuario else None,
+            "cantidad_kg": reserva.kg_reservados,
+        }
+    )
 
 
 @router.get("/", response_model=list[ReservaPublic], summary="Listar reservas")
@@ -34,7 +48,7 @@ def listar_reservas(
         query = query.where(Reserva.oferta_id == oferta_id)
     if usuario_id:
         query = query.where(Reserva.usuario_id == usuario_id)
-    return session.exec(query).all()
+    return [_publicar_reserva(r, session) for r in session.exec(query).all()]
 
 
 @router.post("/", response_model=ReservaPublic, summary="Crear una reserva")
@@ -70,15 +84,15 @@ def crear_reserva(data: ReservaCreate, session: Session = Depends(get_session)):
             ),
         )
 
-    nueva = Reserva(**data.model_dump())
+    nueva = Reserva(**data.model_dump(exclude={"cantidad_kg"}))
     session.add(nueva)
     session.commit()
     session.refresh(nueva)
-    return nueva
+    return _publicar_reserva(nueva, session)
 
 
 @router.patch("/{reserva_id}/estado", response_model=ReservaPublic, summary="Actualizar estado de una reserva")
-def actualizar_estado(
+def actualizar_estado_query(
     reserva_id: int,
     estado: EstadoReserva,
     session: Session = Depends(get_session),
@@ -90,4 +104,14 @@ def actualizar_estado(
     session.add(reserva)
     session.commit()
     session.refresh(reserva)
-    return reserva
+    return _publicar_reserva(reserva, session)
+
+
+@router.patch("/{reserva_id}", response_model=ReservaPublic, summary="Actualizar estado de una reserva (panel)")
+def actualizar_estado_body(
+    reserva_id: int,
+    data: ReservaEstadoUpdate,
+    session: Session = Depends(get_session),
+):
+    """El panel envía PATCH /reservas/{id} con {"estado": "..."}."""
+    return actualizar_estado_query(reserva_id, data.estado, session)

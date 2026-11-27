@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import create_db_and_tables
-from app.routers import bascula, categorias, usuarios, lecturas, ofertas, reservas, reclamos, predicciones
+from app.routers import api_lecturas, bascula, categorias, usuarios, lecturas, ofertas, reservas, reclamos, predicciones
 
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
@@ -59,6 +59,7 @@ app.add_middleware(
 # ─── Registro de routers ──────────────────────────────────────────────────────
 # Cada router agrega su prefijo automáticamente (/usuarios, /basculas, etc.)
 
+app.include_router(api_lecturas.router)
 app.include_router(usuarios.router)
 app.include_router(categorias.router)
 app.include_router(bascula.router)

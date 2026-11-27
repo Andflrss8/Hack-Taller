@@ -6,15 +6,16 @@ REGLA CLAVE: Los schemas *Public nunca exponen campos sensibles
 estos schemas son lo que ve el cliente de escritorio.
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 from app.models import (
     RolUsuario, TipoNegocio, TipoLectura,
-    EstadoOferta, EstadoReserva, TipoReclamo, EstadoReclamo
+    EstadoOferta, EstadoReserva, TipoReclamo, EstadoReclamo,
+    utcnow,
 )
 
 
@@ -130,6 +131,14 @@ class LecturaPublic(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LecturaPanel(LecturaPublic):
+    """Lectura con los alias que el panel usa en 'Lecturas recientes'."""
+    c: str          # nombre de la categoría
+    g: float        # gramos como número (el JS llama g.toFixed)
+    h: str          # hora legible
+    s: bool         # es_simulada
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  CATEGORIAS DE ALIMENTO
 # ══════════════════════════════════════════════════════════════════════════════
@@ -182,14 +191,23 @@ class PrediccionPublic(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class OfertaCreate(BaseModel):
-    usuario_id: int
+    # El panel no manda usuario_id: se usa el vendedor demo (id 2).
+    usuario_id: int = 2
     prediccion_id: Optional[int] = None
     categoria_id: int
     titulo: str
     descripcion: Optional[str] = None
-    kg_disponibles: Decimal
-    ventana_inicio: datetime
-    ventana_fin: datetime
+    # El panel manda cantidad_kg; se acepta también el nombre canónico.
+    kg_disponibles: Decimal = Field(
+        validation_alias=AliasChoices("kg_disponibles", "cantidad_kg")
+    )
+    # El panel manda horario_recogida (texto) y ciudad, no fechas.
+    ventana_inicio: datetime = Field(default_factory=utcnow)
+    ventana_fin: datetime = Field(
+        default_factory=lambda: utcnow() + timedelta(hours=24)
+    )
+    horario_recogida: Optional[str] = None
+    ciudad: Optional[str] = None
 
 
 class OfertaPublic(BaseModel):
@@ -203,6 +221,11 @@ class OfertaPublic(BaseModel):
     ventana_inicio: datetime
     ventana_fin: datetime
     estado: EstadoOferta
+    # Alias que el panel necesita para pintar la tarjeta.
+    categoria: Optional[str] = None
+    ciudad: Optional[str] = None
+    horario_recogida: Optional[str] = None
+    cantidad_kg: Optional[Decimal] = None
 
     model_config = {"from_attributes": True}
 
@@ -213,8 +236,11 @@ class OfertaPublic(BaseModel):
 
 class ReservaCreate(BaseModel):
     oferta_id: int
-    usuario_id: int
-    kg_reservados: Decimal
+    # El panel no manda usuario_id: se usa el receptor demo (id 1).
+    usuario_id: int = 1
+    kg_reservados: Decimal = Field(
+        validation_alias=AliasChoices("kg_reservados", "cantidad_kg")
+    )
 
     @field_validator("kg_reservados")
     @classmethod
@@ -225,6 +251,11 @@ class ReservaCreate(BaseModel):
         return v
 
 
+class ReservaEstadoUpdate(BaseModel):
+    """El panel envía PATCH /reservas/{id} con {"estado": "..."}."""
+    estado: EstadoReserva
+
+
 class ReservaPublic(BaseModel):
     id: int
     oferta_id: int
@@ -232,6 +263,10 @@ class ReservaPublic(BaseModel):
     kg_reservados: Decimal
     estado: EstadoReserva
     creada_en: datetime
+    # Alias que el panel necesita para pintar la reserva.
+    oferta: Optional[str] = None
+    quien: Optional[str] = None
+    cantidad_kg: Optional[Decimal] = None
 
     model_config = {"from_attributes": True}
 
@@ -241,7 +276,8 @@ class ReservaPublic(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class ReclamoCreate(BaseModel):
-    usuario_id: int
+    # El panel no manda usuario_id: se usa el vendedor demo (id 2).
+    usuario_id: int = 2
     bascula_id: Optional[int] = None
     tipo: TipoReclamo
     descripcion: str
@@ -256,6 +292,8 @@ class ReclamoPublic(BaseModel):
     estado: EstadoReclamo
     creado_en: datetime
     resuelto_en: Optional[datetime]
+    # Alias que el panel necesita para pintar el reclamo.
+    bascula: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -90,6 +90,50 @@ class ResultadoAnalisisIA(BaseModel):
     centros_donacion_cercanos: List[CentroDonacionSugerido] = Field(default_factory=list)
 
 
+def resultado_ia_fallback(
+    lecturas_info: list[dict],
+    categoria_info: dict,
+    negocio_info: dict,
+) -> ResultadoAnalisisIA:
+    """
+    Respuesta de ejemplo cuando Gemini no está disponible (o no hay clave).
+    Usa SOLO las lecturas reales: una lectura es el peso actual (snapshot),
+    nunca se suman. Permite que la demo siga funcionando sin 500.
+    """
+    peso_actual_g = float(lecturas_info[-1]["peso_g"]) if lecturas_info else 0.0
+    kg = round(peso_actual_g / 1000, 2)
+    nombre = categoria_info.get("nombre") or "Alimento"
+    lugar = negocio_info.get("ciudad_region") or negocio_info.get("nombre_negocio") or "la zona"
+
+    return ResultadoAnalisisIA(
+        valido=True,
+        motivo_rechazo="Modo demo: Gemini no disponible, se usó una predicción de ejemplo.",
+        prediccion=PrediccionIA(
+            kg_estimados=kg,
+            confianza=0.5,
+            justificacion=(
+                f"Estimación de ejemplo basada en el peso actual de la báscula "
+                f"({peso_actual_g:.0f} g) de {nombre}. Sin suma de lecturas."
+            ),
+        ),
+        oferta_sugerida=OfertaIA(
+            titulo=f"Excedente de {nombre}"[:80],
+            descripcion=f"Excedente disponible en {lugar}. Oferta generada en modo demo."[:250],
+            kg_disponibles=kg,
+            horas_ventana_sugeridas=24,
+        ),
+        centros_donacion_cercanos=[
+            CentroDonacionSugerido(
+                nombre="DIF Municipal",
+                tipo_institucion="DIF",
+                ubicacion_referencia=lugar,
+                motivo_cercania="Institución local de asistencia alimentaria.",
+                requiere_verificacion=True,
+            )
+        ],
+    )
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  FUNCIÓN PRINCIPAL DE ANÁLISIS CON GEMINI
 # ══════════════════════════════════════════════════════════════════════════════

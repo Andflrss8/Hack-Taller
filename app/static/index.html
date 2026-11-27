@@ -103,7 +103,7 @@ const A={
 };
 
 // ── Render ──
-const NEED={bascula:[['cat','/categorias'],['bas','/basculas']],dispositivos:[['bas','/basculas']],predicciones:[['cat','/categorias'],['pred','/predicciones']],ofertas:[['cat','/categorias'],['ofe','/ofertas']],reservas:[['ofe','/ofertas'],['res','/reservas']],soporte:[['bas','/basculas'],['rec','/reclamos']]};
+const NEED={bascula:[['cat','/categorias'],['bas','/basculas'],['lect','/lecturas']],dispositivos:[['bas','/basculas']],predicciones:[['cat','/categorias'],['pred','/predicciones']],ofertas:[['cat','/categorias'],['ofe','/ofertas']],reservas:[['ofe','/ofertas'],['res','/reservas']],soporte:[['bas','/basculas'],['rec','/reclamos']]};
 const TABS=[['bascula','Báscula'],['dispositivos','Dispositivos'],['predicciones','Predicciones'],['ofertas','Ofertas'],['reservas','Reservas'],['soporte','Soporte']];
 function paint(){const l=$('#L');if(l)l.innerHTML=L[S.tab]();
  document.querySelectorAll('[data-sel]').forEach(s=>{const v=s.value;s.innerHTML=SEL[s.dataset.sel]();if(v)s.value=v});

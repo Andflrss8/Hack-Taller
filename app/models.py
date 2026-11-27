@@ -1,10 +1,15 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Optional, List
 
 from sqlalchemy import BigInteger, Column, ForeignKey, Text, DECIMAL
 from sqlmodel import SQLModel, Field, Relationship
+
+
+def utcnow() -> datetime:
+    """UTC con timezone: SQLModel/MySQL rechaza fechas naive."""
+    return datetime.now(timezone.utc)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -102,7 +107,7 @@ class Usuario(SQLModel, table=True):
     # Decimal(10,7) para precisión geográfica suficiente (~1 cm)
     latitud: Optional[Decimal] = Field(default=None, sa_column=Column(DECIMAL(10, 7)))
     longitud: Optional[Decimal] = Field(default=None, sa_column=Column(DECIMAL(10, 7)))
-    creado_en: datetime = Field(default_factory=datetime.utcnow)
+    creado_en: datetime = Field(default_factory=utcnow)
 
     # Relaciones (lazy por defecto en SQLModel)
     basculas: List["Bascula"] = Relationship(back_populates="usuario")
@@ -157,7 +162,7 @@ class LecturaPeso(SQLModel, table=True):
     # Equivalente a TINYTEXT: descripción corta opcional del operador
     descripcion: Optional[str] = Field(default=None, max_length=255)
     tipo: TipoLectura
-    fecha_hora: datetime = Field(default_factory=datetime.utcnow, index=True)
+    fecha_hora: datetime = Field(default_factory=utcnow, index=True)
     es_simulada: bool = False
 
     bascula: Optional[Bascula] = Relationship(back_populates="lecturas")
@@ -177,7 +182,7 @@ class Prediccion(SQLModel, table=True):
     # confianza entre 0.0000 y 1.0000
     confianza: Optional[Decimal] = Field(default=None, sa_column=Column(DECIMAL(5, 4)))
     modelo: Optional[str] = None
-    creada_en: datetime = Field(default_factory=datetime.utcnow)
+    creada_en: datetime = Field(default_factory=utcnow)
 
     usuario: Optional[Usuario] = Relationship(back_populates="predicciones")
     categoria: Optional[CategoriaAlimento] = Relationship(back_populates="predicciones")
@@ -212,7 +217,7 @@ class Reserva(SQLModel, table=True):
     usuario_id: int = Field(foreign_key="USUARIOS.id", index=True)
     kg_reservados: Decimal = Field(sa_column=Column(DECIMAL(10, 2)))
     estado: EstadoReserva = EstadoReserva.PENDIENTE
-    creada_en: datetime = Field(default_factory=datetime.utcnow)
+    creada_en: datetime = Field(default_factory=utcnow)
 
     oferta: Optional[Oferta] = Relationship(back_populates="reservas")
     usuario: Optional[Usuario] = Relationship(back_populates="reservas")
@@ -228,7 +233,7 @@ class Reclamo(SQLModel, table=True):
     # Text (no TinyText) para permitir descripciones largas del problema
     descripcion: str = Field(sa_column=Column(Text))
     estado: EstadoReclamo = EstadoReclamo.ABIERTO
-    creado_en: datetime = Field(default_factory=datetime.utcnow)
+    creado_en: datetime = Field(default_factory=utcnow)
     resuelto_en: Optional[datetime] = None
 
     usuario: Optional[Usuario] = Relationship(back_populates="reclamos")

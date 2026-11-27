@@ -25,16 +25,19 @@ from app.models import (
     PrediccionLectura,
     RolUsuario,
     Usuario,
+    utcnow,
 )
 from app.schemas import (
     AnalisisCompletoIAResponse,
     CentroDonacionPublic,
+    OfertaPublic,
     ReceptorCercano,
 )
 from app.services.gemini_service import (
     GEMINI_MODEL,
     analizar_lecturas_con_gemini,
     calcular_distancia_km,
+    resultado_ia_fallback,
 )
 
 
@@ -139,12 +142,12 @@ def ejecutar_analisis_y_guardar(
             categoria_info=categoria_info,
             negocio_info=negocio_info,
         )
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Error al comunicarse con la API de Gemini: {e}",
+    except Exception:
+        # Sin clave real o fallo de Gemini: la demo continúa con datos de ejemplo.
+        resultado_ia = resultado_ia_fallback(
+            lecturas_info=lecturas_info,
+            categoria_info=categoria_info,
+            negocio_info=negocio_info,
         )
 
     # Regla de seguridad: si el prompt detecta datos ajenos o inválidos, rechaza
@@ -162,7 +165,7 @@ def ejecutar_analisis_y_guardar(
         kg_estimados=Decimal(str(round(resultado_ia.prediccion.kg_estimados, 2))),
         confianza=Decimal(str(round(resultado_ia.prediccion.confianza, 4))),
         modelo=os.getenv("GEMINI_MODEL", GEMINI_MODEL),
-        creada_en=datetime.utcnow(),
+        creada_en=utcnow(),
     )
     session.add(prediccion)
     session.commit()
@@ -174,9 +177,9 @@ def ejecutar_analisis_y_guardar(
     session.commit()
 
     # 3. Guardar la Oferta sugerida si aplica
-    oferta_creada: Optional[Oferta] = None
+    oferta_publica: Optional[OfertaPublic] = None
     if crear_oferta and resultado_ia.oferta_sugerida:
-        ahora = datetime.utcnow()
+        ahora = utcnow()
         horas = max(1, min(resultado_ia.oferta_sugerida.horas_ventana_sugeridas, 72))
         oferta_creada = Oferta(
             usuario_id=vendedor.id,
@@ -192,18 +195,27 @@ def ejecutar_analisis_y_guardar(
         session.add(oferta_creada)
         session.commit()
         session.refresh(oferta_creada)
+        # Se convierte a esquema público: el modelo ORM trae la relación `categoria`
+        # como objeto, pero el panel espera el nombre como texto.
+        oferta_publica = OfertaPublic.model_validate(
+            {
+                **oferta_creada.model_dump(),
+                "categoria": categoria.nombre,
+                "cantidad_kg": oferta_creada.kg_disponibles,
+            }
+        )
 
     # 4. Obtener receptores registrados + centros sugeridos por Gemini
     receptores = obtener_receptores_cercanos(session, vendedor)
     centros = [
         CentroDonacionPublic(**c.model_dump())
-        for c in resultado_ia.centros_donacion_sugeridos
+        for c in resultado_ia.centros_donacion_cercanos
     ]
 
     return AnalisisCompletoIAResponse(
         lectura=lecturas[0] if len(lecturas) == 1 else None,
         prediccion=prediccion,
-        oferta=oferta_creada,
+        oferta=oferta_publica,
         justificacion_ia=resultado_ia.prediccion.justificacion,
         receptores_registrados=receptores,
         centros_donacion_sugeridos=centros,

@@ -7,14 +7,14 @@ que recibe el JSON fijo del hardware y lo guarda en LECTURAS_PESO.
 """
 
 import hashlib
-from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import Bascula, CategoriaAlimento, LecturaPeso, TipoLectura, Usuario
+from app.models import Bascula, CategoriaAlimento, LecturaPeso, TipoLectura, Usuario, utcnow
+from app.services.lecturas_service import guardar_lectura
 from app.schemas import (
     AnalisisCompletoIAResponse,
     BasculaCreate,
@@ -87,27 +87,17 @@ def recibir_lectura_esp32(
             ),
         )
 
-    # 2. Crear la lectura.
+    # 2. Guardar la lectura (única lógica compartida con /api/lecturas).
     #    El campo 'tipo' del ESP32 siempre es "lectura" (string genérico del hardware).
     #    Se guarda como SOBRANTE por decisión del equipo (ver CLAUDE.md sección 7).
-    nueva_lectura = LecturaPeso(
-        bascula_id=bascula.id,
-        categoria_id=payload.categoria_id,
+    #    Una lectura es un snapshot: NO se suman lecturas.
+    return guardar_lectura(
+        session=session,
+        codigo_dispositivo=payload.codigo_dispositivo,
         peso_g=Decimal(str(payload.peso_g)),
-        tipo=TipoLectura.SOBRANTE,
-        fecha_hora=datetime.utcnow(),
+        categoria_id=payload.categoria_id,
         es_simulada=payload.es_simulada,
     )
-
-    # 3. Actualizar la última vez que esta báscula envió datos
-    bascula.ultima_conexion = datetime.utcnow()
-    session.add(bascula)
-
-    session.add(nueva_lectura)
-    session.commit()
-    session.refresh(nueva_lectura)
-
-    return nueva_lectura
 
 
 @router.post(
@@ -169,6 +159,14 @@ def crear_bascula(data: BasculaCreate, session: Session = Depends(get_session)):
     Registra una báscula y hashea su api_key antes de guardar.
     El api_key_hash nunca se devuelve en la respuesta.
     """
+    if session.exec(
+        select(Bascula).where(Bascula.codigo_dispositivo == data.codigo_dispositivo)
+    ).first():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Ya existe una báscula con código '{data.codigo_dispositivo}'.",
+        )
+
     nueva = Bascula(
         usuario_id=data.usuario_id,
         codigo_dispositivo=data.codigo_dispositivo,
