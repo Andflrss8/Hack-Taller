@@ -6,7 +6,7 @@ El backend gestiona la base de datos (MySQL 8), el registro de pesajes provenien
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 - **Lenguaje:** Python 3.12
 - **Framework:** FastAPI
@@ -16,7 +16,7 @@ El backend gestiona la base de datos (MySQL 8), el registro de pesajes provenien
 
 ---
 
-## 🚀 Guía de inicio rápido para el equipo
+## Guía de inicio rápido para el equipo
 
 Sigue estos sencillos pasos para levantar el entorno de desarrollo con Docker:
 
@@ -38,7 +38,7 @@ Crea tu archivo local `.env` a partir de la plantilla:
   copy .env.example .env
   ```
 
-> ⚠️ **Nota:** Para usar las funciones de IA (predicciones, ofertas y centros de donación cercanos), agrega tu clave real en `GEMINI_API_KEY=` dentro de `.env`. Si cambias las contraseñas de MySQL, asegúrate de que `MYSQL_ROOT_PASSWORD` y la contraseña en `DATABASE_URL` sean idénticas.
+> **Nota:** Para usar las funciones de IA (predicciones, ofertas y centros de donación cercanos), agrega tu clave real en `GEMINI_API_KEY=` dentro de `.env`. Si cambias las contraseñas de MySQL, asegúrate de que `MYSQL_ROOT_PASSWORD` y la contraseña en `DATABASE_URL` sean idénticas.
 
 ### 3. Levantar los contenedores con Docker
 Ejecuta el siguiente comando en la raíz del proyecto:
@@ -50,7 +50,7 @@ docker compose up --build
 
 ---
 
-## 🌐 Enlaces y Servicios Disponibles
+## Enlaces y Servicios Disponibles
 
 Una vez que los contenedores estén corriendo, puedes acceder a:
 
@@ -63,7 +63,7 @@ Una vez que los contenedores estén corriendo, puedes acceder a:
 
 ---
 
-## 📡 Endpoints clave para ESP32, IA y Frontend
+## Endpoints clave para ESP32, IA y Frontend
 
 ### 1. Báscula ESP32
 - **Solo guardar lectura:** `POST http://localhost:8000/basculas/lectura-esp32`
