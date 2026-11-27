@@ -146,7 +146,7 @@ def _get_client() -> genai.Client:
             "GEMINI_API_KEY no está configurada o sigue con el valor de ejemplo. "
             "Configúrala en tu archivo .env."
         )
-    return genai.Client(api_key=api_key)
+    return genai.Client(api_key=api_key, http_options={"timeout": 5000})
 
 
 def analizar_lecturas_con_gemini(

@@ -91,13 +91,33 @@ def recibir_lectura_esp32(
     #    El campo 'tipo' del ESP32 siempre es "lectura" (string genérico del hardware).
     #    Se guarda como SOBRANTE por decisión del equipo (ver CLAUDE.md sección 7).
     #    Una lectura es un snapshot: NO se suman lecturas.
-    return guardar_lectura(
+    lectura = guardar_lectura(
         session=session,
         codigo_dispositivo=payload.codigo_dispositivo,
         peso_g=Decimal(str(payload.peso_g)),
         categoria_id=payload.categoria_id,
         es_simulada=payload.es_simulada,
     )
+
+    # 3. Generar la predicción automáticamente al registrar la medición
+    try:
+        bascula = session.get(Bascula, lectura.bascula_id)
+        if bascula:
+            vendedor = session.get(Usuario, bascula.usuario_id)
+            categoria = session.get(CategoriaAlimento, payload.categoria_id)
+            if vendedor and categoria:
+                ejecutar_analisis_y_guardar(
+                    session=session,
+                    vendedor=vendedor,
+                    categoria=categoria,
+                    lecturas=[lectura],
+                    crear_oferta=False,
+                )
+    except Exception:
+        # Si la IA falla, no bloqueamos la respuesta exitosa de la lectura
+        pass
+
+    return lectura
 
 
 @router.post(
