@@ -12,8 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import Reserva, Oferta, EstadoReserva, Usuario
+from app.models import Reserva, Oferta, EstadoReserva, RolUsuario, Usuario
 from app.schemas import ReservaCreate, ReservaEstadoUpdate, ReservaPublic
+from app.services.usuarios_service import resolver_usuario
 
 router = APIRouter(prefix="/reservas", tags=["Reservas"])
 
@@ -84,7 +85,10 @@ def crear_reserva(data: ReservaCreate, session: Session = Depends(get_session)):
             ),
         )
 
-    nueva = Reserva(**data.model_dump(exclude={"cantidad_kg"}))
+    receptor = resolver_usuario(session, RolUsuario.RECEPTOR, data.usuario_id)
+    valores = data.model_dump(exclude={"cantidad_kg"})
+    valores["usuario_id"] = receptor.id
+    nueva = Reserva(**valores)
     session.add(nueva)
     session.commit()
     session.refresh(nueva)

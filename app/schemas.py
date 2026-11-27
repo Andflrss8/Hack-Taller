@@ -191,8 +191,8 @@ class PrediccionPublic(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class OfertaCreate(BaseModel):
-    # El panel no manda usuario_id: se usa el vendedor demo (id 2).
-    usuario_id: int = 2
+    # Si el panel no manda usuario_id, el router resuelve al vendedor por rol.
+    usuario_id: Optional[int] = None
     prediccion_id: Optional[int] = None
     categoria_id: int
     titulo: str
@@ -236,8 +236,8 @@ class OfertaPublic(BaseModel):
 
 class ReservaCreate(BaseModel):
     oferta_id: int
-    # El panel no manda usuario_id: se usa el receptor demo (id 1).
-    usuario_id: int = 1
+    # Si el panel no manda usuario_id, el router resuelve al receptor por rol.
+    usuario_id: Optional[int] = None
     kg_reservados: Decimal = Field(
         validation_alias=AliasChoices("kg_reservados", "cantidad_kg")
     )
@@ -276,8 +276,8 @@ class ReservaPublic(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class ReclamoCreate(BaseModel):
-    # El panel no manda usuario_id: se usa el vendedor demo (id 2).
-    usuario_id: int = 2
+    # Si el panel no manda usuario_id, el router resuelve al vendedor por rol.
+    usuario_id: Optional[int] = None
     bascula_id: Optional[int] = None
     tipo: TipoReclamo
     descripcion: str

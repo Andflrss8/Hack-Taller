@@ -199,3 +199,15 @@ Los schemas de entrada/salida en [`app/schemas.py`](app/schemas.py).
 - Es un hackathon: priorizar soluciones simples y funcionales sobre sobreingeniería, sin sacrificar la integridad de datos.
 - Mantener este archivo actualizado cuando cambie el esquema.
 - El consumidor de la API es una **app de escritorio**: diseñar respuestas JSON limpias, sin campos sensibles.
+
+## 10. Estado actual del MVP (actualizado 2026-11-27)
+
+- Rama de trabajo: `union`, ya pusheada a `origin/union` y sincronizada en el commit `2c25736`.
+- PR pendiente: `union` → `main` (https://github.com/Andflrss8/Hack-Taller/pull/new/union).
+- ESP32: firmware corregido en `firmware/bascula/bascula.ino` (timeout de POST 2 s, lectura HX711 con timeout por muestra, envío solo cuando el peso está estable). Pines DT 4 / SCK 5, celda rojo E+, negro E-, verde A+, blanco A-. La carpeta `firmware/esp32_bascula/` es una variante con `config.h`; no flashear ambos.
+- El ESP32 envía a `POST /api/lecturas` con header `X-API-Key`; el panel usa `/basculas/lectura-esp32`.
+- Gemini: clave real en `.env` (`GEMINI_API_KEY`); con `cambiar_clave` se usa el fallback determinista.
+- Panel: formulario en Predicciones que llama a `/predicciones/generar-ia`; el botón de cada tarjeta dice "Generar oferta con IA" y llama a `/ofertas/generar-ia` con `prediccion_id`.
+- Los ids de usuario NO van fijos en los schemas: ofertas/reclamos resuelven al VENDEDOR y reservas al RECEPTOR por rol (`app/services/usuarios_service.py`).
+- `scripts/seed.py` ya crea una lectura y una predicción de ejemplo para que un clon fresco muestre datos.
+- `docs/IOT.md` actualizado con el endpoint y el timeout vigentes. Pendiente: confirmar con hardware si el cableado real es DT 4 / SCK 5 o DT 16 / SCK 4.

@@ -15,6 +15,8 @@ Se puede ejecutar las veces que quiera: no duplica registros.
 import hashlib
 import os
 import sys
+from datetime import date, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,9 +30,14 @@ from app.database import create_db_and_tables, engine  # noqa: E402
 from app.models import (  # noqa: E402
     Bascula,
     CategoriaAlimento,
+    LecturaPeso,
+    Prediccion,
+    PrediccionLectura,
     RolUsuario,
+    TipoLectura,
     TipoNegocio,
     Usuario,
+    utcnow,
 )
 
 
@@ -111,6 +118,60 @@ def main() -> None:
             )
             session.commit()
             print("[seed] Báscula ESP32-BASCULA-01 creada.")
+
+        # Datos de ejemplo: un clon fresco ya muestra una lectura y una
+        # predicción en el panel, sin tener que flashear el ESP32.
+        bascula = session.exec(
+            select(Bascula).where(Bascula.codigo_dispositivo == "ESP32-BASCULA-01")
+        ).first()
+        categoria = session.exec(
+            select(CategoriaAlimento).where(CategoriaAlimento.nombre == "Frutas")
+        ).first()
+        if bascula and categoria:
+            lectura = session.exec(
+                select(LecturaPeso).where(
+                    LecturaPeso.bascula_id == bascula.id,
+                    LecturaPeso.es_simulada.is_(True),
+                )
+            ).first()
+            if not lectura:
+                lectura = LecturaPeso(
+                    bascula_id=bascula.id,
+                    categoria_id=categoria.id,
+                    peso_g=Decimal("450.00"),
+                    descripcion="Lectura de ejemplo del seed",
+                    tipo=TipoLectura.SOBRANTE,
+                    fecha_hora=utcnow(),
+                    es_simulada=True,
+                )
+                session.add(lectura)
+                session.commit()
+                session.refresh(lectura)
+                print("[seed] Lectura de ejemplo creada.")
+
+            prediccion = session.exec(
+                select(Prediccion).where(Prediccion.usuario_id == vendedor.id)
+            ).first()
+            if not prediccion:
+                prediccion = Prediccion(
+                    usuario_id=vendedor.id,
+                    categoria_id=categoria.id,
+                    fecha_objetivo=date.today() + timedelta(days=1),
+                    kg_estimados=Decimal("0.45"),
+                    confianza=Decimal("0.7000"),
+                    modelo="seed-demo",
+                    creada_en=utcnow(),
+                )
+                session.add(prediccion)
+                session.commit()
+                session.refresh(prediccion)
+                session.add(
+                    PrediccionLectura(
+                        prediccion_id=prediccion.id, lectura_id=lectura.id
+                    )
+                )
+                session.commit()
+                print("[seed] Predicción de ejemplo creada y vinculada.")
 
         print("[seed] Listo. IDs: vendedor=%s, receptor=%s" % (vendedor.id, receptor.id))
 

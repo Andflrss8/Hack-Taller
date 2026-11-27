@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import Bascula, Reclamo, EstadoReclamo, utcnow
+from app.models import Bascula, Reclamo, EstadoReclamo, RolUsuario, utcnow
 from app.schemas import ReclamoCreate, ReclamoPublic
+from app.services.usuarios_service import resolver_usuario
 
 router = APIRouter(prefix="/reclamos", tags=["Reclamos"])
 
@@ -47,7 +48,10 @@ def obtener_reclamo(reclamo_id: int, session: Session = Depends(get_session)):
 
 @router.post("/", response_model=ReclamoPublic, summary="Crear un reclamo de falla")
 def crear_reclamo(data: ReclamoCreate, session: Session = Depends(get_session)):
-    nuevo = Reclamo(**data.model_dump())
+    vendedor = resolver_usuario(session, RolUsuario.VENDEDOR, data.usuario_id)
+    valores = data.model_dump()
+    valores["usuario_id"] = vendedor.id
+    nuevo = Reclamo(**valores)
     session.add(nuevo)
     session.commit()
     session.refresh(nuevo)

@@ -39,7 +39,7 @@
 #define PESO_MINIMO_G 30.0f       // por debajo de esto se ignora (báscula vacía o ruido)
 #define MUESTRAS_TARA 20
 
-#define HTTP_TIMEOUT_MS 8000
+#define HTTP_TIMEOUT_MS 2000          // corto: si el backend no responde, no congela la báscula
 #define MAX_INTENTOS 3            // intentos de POST por pesaje
 #define REINTENTO_WIFI_MS 10000   // cada cuánto se relanza WiFi.begin, sin esperar a que conecte
 

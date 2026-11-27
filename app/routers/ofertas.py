@@ -19,6 +19,7 @@ from app.models import (
     Oferta,
     Prediccion,
     PrediccionLectura,
+    RolUsuario,
     Usuario,
 )
 from app.schemas import (
@@ -34,6 +35,7 @@ from app.services.flujo_ia import (
     ejecutar_analisis_y_guardar,
     obtener_receptores_cercanos,
 )
+from app.services.usuarios_service import resolver_usuario
 from app.services.gemini_service import (
     buscar_centros_donacion_gemini,
     resultado_ia_fallback,
@@ -102,11 +104,12 @@ def crear_oferta(data: OfertaCreate, session: Session = Depends(get_session)):
             partes.append(f"Ciudad: {data.ciudad}")
         descripcion = " | ".join(partes)[:255]
 
-    nueva = Oferta(
-        **data.model_dump(
-            exclude={"horario_recogida", "ciudad", "cantidad_kg"},
-        )
+    vendedor = resolver_usuario(session, RolUsuario.VENDEDOR, data.usuario_id)
+    valores = data.model_dump(
+        exclude={"horario_recogida", "ciudad", "cantidad_kg"},
     )
+    valores["usuario_id"] = vendedor.id
+    nueva = Oferta(**valores)
     nueva.descripcion = descripcion
     session.add(nueva)
     session.commit()

@@ -34,6 +34,11 @@ def guardar_lectura(
     if not bascula.activa:
         raise HTTPException(status_code=403, detail="La báscula está desactivada.")
 
+    if peso_g < 0:
+        # /api/lecturas ya lo valida; /basculas/lectura-esp32 no. Se valida
+        # aquí para que las dos rutas se comporten igual.
+        raise HTTPException(status_code=400, detail="peso_g debe ser mayor o igual a 0.")
+
     if not session.get(CategoriaAlimento, categoria_id):
         raise HTTPException(
             status_code=404,

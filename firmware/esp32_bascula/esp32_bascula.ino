@@ -30,6 +30,10 @@
 
   Antes de compilar: copia config.example.h como config.h y llena tus datos.
   Placa: ESP32 Dev Module. Monitor serie: 115200.
+
+  Variante con config.h del sketch firmware/bascula/bascula.ino. Tiene el
+  mismo endpoint (/api/lecturas) y el mismo timeout (HTTP_TIMEOUT_MS).
+  NO flashear ambos sketches a la vez en la misma báscula.
 */
 
 #if __has_include("config.h")
@@ -131,6 +135,14 @@ void prepararBascula() {
   bascula.set_scale(FACTOR_CALIBRACION);
   Serial.println("Tara: no pongas nada en la bascula.");
   delay(1500);
+  // No llamar a tare() directo: espera con timeout para no colgarse si
+  // el cable DT/SCK está suelto.
+  for (int i = 0; i < MUESTRAS_TARA; i++) {
+    if (!bascula.wait_ready_timeout(300)) {
+      Serial.println("HX711 no responde. Revisa DT, SCK, VCC y GND.");
+      return;
+    }
+  }
   bascula.tare(MUESTRAS_TARA);
   Serial.println("Tara lista.");
 }
@@ -148,11 +160,19 @@ float leerPeso() {
   if (SIMULAR) {
     return pesoDePrueba();
   }
-  if (!bascula.is_ready()) {
-    Serial.println("HX711 no responde. Revisa cables DT y SCK.");
-    return 0;
+  // is_ready() solo cubre la primera muestra: get_units(N) puede esperar
+  // sin límite si el cable se suelta entre muestras. Esperar antes de CADA
+  // muestra y abortar si no responde.
+  float suma = 0;
+  for (int i = 0; i < NUM_MUESTRAS; i++) {
+    if (!bascula.wait_ready_timeout(300)) {
+      Serial.println("HX711 no responde. Revisa cables DT y SCK.");
+      return 0;
+    }
+    suma += bascula.get_units(1);
   }
-  return bascula.get_units(NUM_MUESTRAS);
+  float peso = suma / NUM_MUESTRAS;
+  return peso < 0 ? 0 : peso;
 }
 
 // Llena el historial con promedios y dice si ya dejaron de moverse.
@@ -190,7 +210,7 @@ void programarEnvio(float peso) {
 // Está aparte para que procesarEnvio solo se ocupe de cuándo llamarlo.
 int postLectura(float peso) {
   HTTPClient http;
-  String url = String(SERVER_URL) + "/basculas/lectura-esp32";
+  String url = String(SERVER_URL) + "/api/lecturas";
 
   if (!http.begin(url)) {
     Serial.println("No se pudo armar la URL.");

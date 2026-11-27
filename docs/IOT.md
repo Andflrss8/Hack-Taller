@@ -1,8 +1,8 @@
 # Báscula ESP32
 
-Parte IoT (Octavio y Eduardo). El ESP32 pesa sobrante con una celda de carga y un HX711, y manda cada pesaje estable a `POST /basculas/lectura-esp32`.
+Parte IoT (Octavio y Eduardo). El ESP32 pesa sobrante con una celda de carga y un HX711, y manda cada pesaje estable a `POST /api/lecturas` con el header `X-API-Key`. El panel usa `POST /basculas/lectura-esp32` (sin key) para enviar mediciones manuales.
 
-Hardware de esta guía: **ESP32 DevKit + HX711 + celda de carga de 4 hilos**. DT en GPIO 16, SCK en GPIO 4. Si la placa es otra, hay que cambiar los pines en `config.h` y en `calibracion/calibracion.ino`.
+Hardware de esta guía: **ESP32 DevKit + HX711 + celda de carga de 4 hilos**. El sketch único `firmware/bascula/bascula.ino` usa DT en GPIO 4 y SCK en GPIO 5. La variante con `config.h` trae DT 16 / SCK 4 como ejemplo: usa la que corresponda a tu cableado, pero **no flashear ambos sketches en la misma báscula**.
 
 ## Cableado
 
@@ -19,8 +19,8 @@ La celda trae cuatro cables. Los colores cambian según el fabricante: si la tuy
 |---|---|
 | VCC | 3.3 V |
 | GND | GND |
-| DT | GPIO 16 |
-| SCK | GPIO 4 |
+| DT | GPIO 4 (sketch único) / GPIO 16 (variante `config.h`) |
+| SCK | GPIO 5 (sketch único) / GPIO 4 (variante `config.h`) |
 
 GND del HX711 y GND del ESP32 van juntos. No alimentes el módulo a 5 V y conectes DT directo al ESP32: ese pin es de 3.3 V.
 
@@ -97,7 +97,7 @@ Respuestas que ya existen:
 | 404 | No existe esa báscula o esa categoría |
 | 403 | La báscula está desactivada |
 
-El header `X-API-Key` ya sale del firmware y del simulador. Hoy la API no lo revisa. Cuando pase a revisarlo, una clave incorrecta responderá 401; el firmware no reintentará ese caso porque mandar lo mismo otra vez no lo arregla.
+El header `X-API-Key` ya sale del firmware y del simulador. `POST /api/lecturas` **sí lo valida** contra `BASCULA_API_KEY` del `.env`: una clave incorrecta responde 401. `POST /basculas/lectura-esp32` (el que usa el panel) todavía no lo valida. La clave del firmware debe ser la misma que se registró al crear la báscula y la del `.env`.
 
 ## Qué es una lectura
 
@@ -120,7 +120,7 @@ El JSON siempre lleva `"tipo": "lectura"`. El backend ignora ese campo y guarda 
 
 - **No conecta al WiFi.** El ESP32 solo usa 2.4 GHz. Una red de solo 5 GHz no va a aparecer.
 - **El POST nunca llega y curl en la misma PC sí funciona.** En `SERVER_URL` va la IP LAN de la PC, no `localhost` ni `127.0.0.1`. El firewall de Windows suele bloquear el puerto 8000 para otras máquinas de la red: permite la entrada a ese puerto en la red privada, o abre el puerto para `docker` / Python.
-- **HTTP -1 o timeout en el monitor serie.** La PC y el ESP32 no se ven, la API está caída, o la URL tiene una barra de más al final.
+- **HTTP -1 o timeout en el monitor serie.** La PC y el ESP32 no se ven, la API está caída, o la URL tiene una barra de más al final. El POST espera máximo 2 s y cada muestra del HX711 tiene timeout de 300 ms, así que un cable suelto no congela el servidor `/peso`.
 - **404.** Falta registrar la báscula con ese `codigo_dispositivo`, o `CATEGORIA_ID` no existe. Créalos con los POST de arriba y revisa el id.
 - **403.** Alguien llamó a `PATCH /basculas/{id}/desactivar`. Hay que volver a dejarla activa en la base; el firmware no tiene un endpoint para eso.
 - **El peso sale al revés o enorme.** El factor es el de tu celda, no el de ejemplo. Repite la calibración. Si vacío no da cerca de 0, la tara no corrió: reinicia con la báscula vacía.
@@ -130,7 +130,7 @@ El JSON siempre lleva `"tipo": "lectura"`. El backend ignora ese campo y guarda 
 
 No se tocó la API. Esto haría falta del otro lado:
 
-1. **Verificar `X-API-Key`.** `POST /basculas/lectura-esp32` no lee el header. El firmware ya lo envía. Falta calcular SHA-256 de esa clave y compararlo con `api_key_hash` de la báscula. Si no coincide, rechazar (401 o 403) y no guardar la lectura.
+1. **Verificar `X-API-Key` también en el panel.** `POST /api/lecturas` ya valida la clave global del `.env`. Falta hacerlo en `POST /basculas/lectura-esp32`: calcular SHA-256 y comparar con `api_key_hash` de la báscula. Si se agrega, el panel tendría que empezar a enviar el header.
 2. **Categorías iniciales.** Sin un `POST /categorias` previo, toda lectura responde 404. Una semilla al arrancar (Frutas, Verduras, etc.) evitaría ese paso en la demo.
 3. **Código de báscula repetido.** `POST /basculas` no atrapa un `codigo_dispositivo` duplicado. MySQL puede responder 500 en lugar de un error claro.
 4. **Confirmar qué es una lectura.** El firmware asume un pesaje estable de sobrante y un `categoria_id` fijo en `config.h`. Si el equipo quiere inventario, varios alimentos por báscula o elegir la categoría desde la app, hay que cambiar el firmware.

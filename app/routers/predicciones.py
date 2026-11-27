@@ -76,6 +76,13 @@ def vincular_lectura(
     Registra en PREDICCION_LECTURAS (tabla intermedia N:M) que
     esta lectura de peso alimenta esta predicción.
     """
+    # Validar que ambos registros existan antes de insertar: si no, MySQL
+    # respondería un error de llave foránea en vez de un 404 claro.
+    if not session.get(Prediccion, prediccion_id):
+        raise HTTPException(status_code=404, detail="Predicción no encontrada")
+    if not session.get(LecturaPeso, lectura_id):
+        raise HTTPException(status_code=404, detail="Lectura no encontrada")
+
     # Evitar duplicados en la tabla intermedia
     existente = session.exec(
         select(PrediccionLectura).where(
@@ -139,18 +146,27 @@ def generar_prediccion_ia(
     if not categoria:
         raise HTTPException(status_code=404, detail="Categoría de alimento no encontrada")
 
+    # Las lecturas siempre deben pertenecer a las básculas de este vendedor.
+    basculas_ids = session.exec(
+        select(Bascula.id).where(Bascula.usuario_id == data.usuario_id)
+    ).all()
+    if not basculas_ids:
+        raise HTTPException(status_code=404, detail="El usuario no tiene básculas registradas")
+
     if data.lectura_ids:
-        lecturas = session.exec(
-            select(LecturaPeso).where(LecturaPeso.id.in_(data.lectura_ids))
-        ).all()
+        query = select(LecturaPeso).where(
+            LecturaPeso.id.in_(data.lectura_ids),
+            LecturaPeso.bascula_id.in_(basculas_ids),
+            LecturaPeso.categoria_id == data.categoria_id,
+        )
+        lecturas = session.exec(query).all()
+        if not lecturas:
+            raise HTTPException(
+                status_code=400,
+                detail="Ninguna lectura indicada pertenece a ese usuario y categoría.",
+            )
     else:
         # Buscar las últimas 5 lecturas de las básculas del vendedor para esa categoría
-        basculas_ids = session.exec(
-            select(Bascula.id).where(Bascula.usuario_id == data.usuario_id)
-        ).all()
-        if not basculas_ids:
-            raise HTTPException(status_code=404, detail="El usuario no tiene básculas registradas")
-
         lecturas = session.exec(
             select(LecturaPeso)
             .where(

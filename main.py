@@ -33,7 +33,7 @@ app = FastAPI(
 
 ### Flujo principal
 1. Registrar **usuarios** (`POST /usuarios`) y **básculas** (`POST /basculas`)
-2. La báscula ESP32 envía lecturas automáticas → `POST /basculas/lectura-esp32`
+2. La báscula ESP32 envía lecturas automáticas → `POST /api/lecturas` (el panel usa `/basculas/lectura-esp32`)
 3. Las lecturas generan **predicciones** de excedente → `POST /predicciones`
 4. Las predicciones originan **ofertas** → `POST /ofertas`
 5. Los receptores hacen **reservas** → `POST /reservas`
